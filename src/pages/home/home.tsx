@@ -1,9 +1,120 @@
-import { Button, Layout} from '@douyinfe/semi-ui';
-import { IconLanguage,IconMoon} from '@douyinfe/semi-icons';
-import LogoImg from "../../static/logo.svg";
-import './style.scss';
+import { Button, Dropdown, Layout, Modal} from '@douyinfe/semi-ui'
+import { IconLanguage,IconMoon} from '@douyinfe/semi-icons'
+import { DropDownMenuItem } from '@douyinfe/semi-ui/lib/es/dropdown'
+import StarMaskOnboarding from "@starcoin/starmask-onboarding"
+import { Route, Routes } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import {setIsStarMaskInstalled,systemStateType} from "../../store/reducers/systemReducer"
+import { useDispatch, useSelector } from 'react-redux'
+import { providers } from '@starcoin/starcoin'
+import routers  from '../../routers'
+import LogoImg from "../../static/logo.svg"
+import starMaskLogo from "../../static/stc.svg"
+import installImg from "../../static/install.svg"
+import './style.scss'
+
+
 const Home=()=>{
-  const { Header, Content,Sider} = Layout;
+  const { Header, Content} = Layout;
+  const systemState = useSelector<{system:systemStateType}>(state=>state.system)
+  const dispatch = useDispatch()
+  const menu:DropDownMenuItem[] = [
+    { node: 'title', name: '网络'},
+    { node: 'item', name: 'Starcoin 主网络'},
+    { node: 'item', name: 'Barnard 测试网络'},
+    { node: 'item', name: 'Proxima 测试网络'},
+    { node: 'item', name: 'Halley 测试网络'}
+  ];
+
+  const {isStarMaskInstalled} = systemState as systemStateType
+  const [isInstall,setIsInstall] = useState(false)
+  
+  //starcoin 全局变量
+  const EmployeeWindow = window as any
+  const starcoin = EmployeeWindow.starcoin
+ 
+  useEffect(()=>{
+    const is = StarMaskOnboarding.isStarMaskInstalled()
+    dispatch(setIsStarMaskInstalled(is))
+   
+  },[dispatch])
+
+ 
+
+  const openInstallUrl=()=>{
+    window.open("https://chrome.google.com/webstore/detail/starmask/mfhbebgoclkghebffdldpobeajmbecfk","_blank")
+    setIsInstall(true)
+  }
+
+  const renderStarMaskModal=()=>{
+    return(
+      <Modal
+          header={null}
+          footer={null}
+          visible={!isStarMaskInstalled}
+          closeOnEsc={false}
+          centered={true}
+          height={450}
+          width={380}
+      >
+          {
+            isInstall===false?
+              <div className='installModalContent'>
+                <img className='starMaskLogo' src={starMaskLogo} alt="StarMask" />
+                <h3 style={{textAlign: 'center', fontSize: 30,fontWeight:'bold',marginTop:20}}>StarMask</h3>
+                <p className='installTips'>您尚未安装 StarMask 插件钱包</p>
+                <Button 
+                  size='large' 
+                  theme='solid' 
+                  type='primary' 
+                  style={{ borderRadius: 8,marginTop:50,padding:"25px 30px"}}
+                  onClick={
+                    ()=>{openInstallUrl()}
+                  }
+                >下载 StarMask 插件钱包</Button>
+              </div>
+            :
+              <div className='installModalContent'>
+                <img style={{width:300}}  src={installImg} alt="StarMask" />
+                <h3 style={{textAlign: 'center', fontSize: 18,fontWeight:'bold',marginTop:15}}>已完成插件安装？</h3>
+                <Button 
+                  size='large' 
+                  theme='solid' 
+                  type='primary' 
+                  style={{ borderRadius: 8,marginTop:40,padding:"22px 45px"}}
+                  onClick={()=>{
+                    window.location.reload()
+                  }}
+                >刷新以连接</Button>
+                <p className='actionBtns'>
+                  <span>还未安装?</span> 
+                  <span 
+                    style={{color:'#0064fa',marginLeft:10,cursor:'pointer'}}
+                    onClick={
+                      ()=>{openInstallUrl()}
+                    }
+                  >点击下载</span>
+                </p>
+              </div>
+          }
+          
+      </Modal>
+    )
+  }
+
+  //连接到钱包
+  const connectStarMask = ()=>{
+    const is = StarMaskOnboarding.isStarMaskInstalled()
+    if(!is){
+      dispatch(setIsStarMaskInstalled(false));
+      return
+    }
+    
+    
+  }
+
+  
+
   return(
     <Layout className='layout'>
         <Header className='header'>
@@ -21,12 +132,23 @@ const Home=()=>{
                 <span style={{fontSize:15,fontWeight:'bold'}}>CN</span>
               </span>
             </Button>
-            <Button theme='solid' style={{borderRadius:5}} type='primary'>连接钱包</Button>
+
+            <Dropdown trigger={'click'} showTick position={'bottom'} menu={menu}>
+                <Button   type='tertiary' style={{marginRight:10}}>Starcoin 主网络</Button>
+            </Dropdown>
+
+            <Button onClick={connectStarMask} theme='solid' style={{borderRadius:5}} type='primary'>连接钱包</Button>
           </div>
         </Header>
         <Layout>
-            <Sider>Sider</Sider>
-            <Content>Content</Content>
+            <Content className='content-main'>
+              <Routes>
+                {
+                  routers[0].children.map((item,index)=>(<Route  key={item.path} path={item.path} element={<item.component></item.component>}/>))
+                }
+              </Routes>
+            </Content>
+            {renderStarMaskModal()}
         </Layout>
         {/* <Footer>Footer</Footer> */}
     </Layout>
