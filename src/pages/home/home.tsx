@@ -6,12 +6,16 @@ import { Route, Routes } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import {setIsStarMaskInstalled,systemStateType} from "../../store/reducers/systemReducer"
 import { useDispatch, useSelector } from 'react-redux'
-import { providers } from '@starcoin/starcoin'
 import routers  from '../../routers'
 import LogoImg from "../../static/logo.svg"
 import starMaskLogo from "../../static/stc.svg"
 import installImg from "../../static/install.svg"
 import './style.scss'
+
+
+//starcoin 全局变量
+const EmployeeWindow = window as any
+const starcoin = EmployeeWindow.starcoin
 
 
 const Home=()=>{
@@ -29,9 +33,7 @@ const Home=()=>{
   const {isStarMaskInstalled} = systemState as systemStateType
   const [isInstall,setIsInstall] = useState(false)
   
-  //starcoin 全局变量
-  const EmployeeWindow = window as any
-  const starcoin = EmployeeWindow.starcoin
+  
  
   useEffect(()=>{
     const is = StarMaskOnboarding.isStarMaskInstalled()
@@ -103,14 +105,21 @@ const Home=()=>{
   }
 
   //连接到钱包
-  const connectStarMask = ()=>{
+  const connectStarMask = async ()=>{
     const is = StarMaskOnboarding.isStarMaskInstalled()
     if(!is){
       dispatch(setIsStarMaskInstalled(false));
       return
     }
-    
-    
+
+    try {
+      const newAccounts = await starcoin.request({
+        method: 'stc_requestAccounts',
+      })
+        window.console.log("连接成功",newAccounts)
+      } catch (error) {
+        window.console.log("连接失败，请重新操作")
+      }
   }
 
   
