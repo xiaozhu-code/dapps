@@ -1,4 +1,3 @@
-import React from 'react';
 import 'reset-css';
 import ReactDOM from 'react-dom/client'
 import reportWebVitals from './reportWebVitals'
@@ -19,6 +18,15 @@ const root = ReactDOM.createRoot(
 
 const EmployeeWindow = window as any
 EmployeeWindow.onboarding = new StarMaskOnboarding()
+
+const body = document.body;
+
+let theme_mode = localStorage.getItem('theme-mode')
+if(theme_mode==='' || theme_mode===null){
+  body.removeAttribute('theme-mode')
+}else{
+  body.setAttribute('theme-mode', 'dark')
+}
 
 root.render(
   <Provider store={store}>

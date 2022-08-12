@@ -1,16 +1,16 @@
-import { Button, Dropdown, Layout, Modal} from '@douyinfe/semi-ui'
-import { IconLanguage,IconMoon} from '@douyinfe/semi-icons'
-import { DropDownMenuItem } from '@douyinfe/semi-ui/lib/es/dropdown'
+import { Button, Layout, Modal} from '@douyinfe/semi-ui'
+import { IconLanguage,IconMoon,IconSun} from '@douyinfe/semi-icons'
 import StarMaskOnboarding from "@starcoin/starmask-onboarding"
 import { Route, Routes } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import {setIsStarMaskInstalled,systemStateType} from "../../store/reducers/systemReducer"
+import {setIsStarMaskInstalled,setStarcoinAccount,setNetwork,systemStateType} from "../../store/reducers/systemReducer"
 import { useDispatch, useSelector } from 'react-redux'
 import routers  from '../../routers'
 import LogoImg from "../../static/logo.svg"
 import starMaskLogo from "../../static/stc.svg"
 import installImg from "../../static/install.svg"
 import './style.scss'
+import { providers } from '@starcoin/starcoin'
 
 
 //starcoin 全局变量
@@ -22,30 +22,108 @@ const Home=()=>{
   const { Header, Content} = Layout;
   const systemState = useSelector<{system:systemStateType}>(state=>state.system)
   const dispatch = useDispatch()
-  const menu:DropDownMenuItem[] = [
-    { node: 'title', name: '网络'},
-    { node: 'item', name: 'Starcoin 主网络'},
-    { node: 'item', name: 'Barnard 测试网络'},
-    { node: 'item', name: 'Proxima 测试网络'},
-    { node: 'item', name: 'Halley 测试网络'}
-  ];
+  const networkList:{[propName:string]:any}={
+    "1":"Starcoin 主网络",
+    "251":'Barnard 测试网络',
+    "252":'Proxima 测试网络',
+    "253":'Halley 测试网络'
+  }
 
-  const {isStarMaskInstalled} = systemState as systemStateType
+  const {isStarMaskInstalled,account,network} = systemState as systemStateType
   const [isInstall,setIsInstall] = useState(false)
+  const [themeMode,setThemeMode] = useState(localStorage.getItem('theme-mode'))
+  let starcoinProvider: providers.Web3Provider
   
-  
+
  
   useEffect(()=>{
     const is = StarMaskOnboarding.isStarMaskInstalled()
     dispatch(setIsStarMaskInstalled(is))
-   
-  },[dispatch])
+    console.log(is && starcoin.isConnected())
+    if(is){
+      // 连接远程节点
+      try {
+        if (starcoin) {
+          // eslint-disable-next-line
+          starcoinProvider = new providers.Web3Provider(starcoin, 'any')
+          handleNewNetwork()
+        }
+      } catch (error) {
+        console.error(error)
+      }
 
- 
+      //更新账号
+      if(starcoin.isConnected()){
+        dispatch(setStarcoinAccount(starcoin.selectedAddress))
+      }
+    }
+    
+   
+    starcoin.on('connect', handelConnectStarMaskSucc);
+    starcoin.on('accountsChanged',handleNewAccounts) 
+    starcoin.on('networkChanged', handleNewNetwork)
+    // eslint-disable-next-line
+  },[]) 
+
+
+  //已链接到钱包
+  const handelConnectStarMaskSucc=()=>{
+    if(starcoin.isConnected()){
+      dispatch(setStarcoinAccount(starcoin.selectedAddress))
+      handleNewNetwork()
+    }
+  }
+
+  //钱包账号切换
+  const handleNewAccounts=()=>{ 
+    dispatch(setStarcoinAccount(starcoin.selectedAddress))
+  }
+
+  //钱包网络切换
+  const handleNewNetwork=async ()=>{
+    const network = await starcoinProvider.getNetwork()
+    dispatch(setNetwork(network.chainId))
+  }
+
 
   const openInstallUrl=()=>{
     window.open("https://chrome.google.com/webstore/detail/starmask/mfhbebgoclkghebffdldpobeajmbecfk","_blank")
     setIsInstall(true)
+  }
+
+
+  //连接到钱包
+  const connectStarMask = async ()=>{
+    const is = StarMaskOnboarding.isStarMaskInstalled()
+    if(!is){
+      dispatch(setIsStarMaskInstalled(false));
+      return
+    }
+    dispatch(setIsStarMaskInstalled(is));
+    try {
+      const newAccounts = await starcoin.request({
+        method: 'stc_requestAccounts',
+      })
+        console.log("连接成功",newAccounts)
+        dispatch(setStarcoinAccount(newAccounts[0]))
+      } catch (error) {
+        console.log("连接失败，请重新操作")
+      }
+  }
+
+
+  //切换主题
+  const switchTheme=()=>{
+    const body = document.body;
+    if (body.hasAttribute('theme-mode')) {
+        body.removeAttribute('theme-mode')
+        localStorage.setItem("theme-mode",'')
+        setThemeMode('')
+    } else {
+        body.setAttribute('theme-mode', 'dark')
+        localStorage.setItem("theme-mode",'dark')
+        setThemeMode('dark')
+    }
   }
 
   const renderStarMaskModal=()=>{
@@ -85,9 +163,10 @@ const Home=()=>{
                   type='primary' 
                   style={{ borderRadius: 8,marginTop:40,padding:"22px 45px"}}
                   onClick={()=>{
-                    window.location.reload()
+                    connectStarMask()
+
                   }}
-                >刷新以连接</Button>
+                >连接钱包</Button>
                 <p className='actionBtns'>
                   <span>还未安装?</span> 
                   <span 
@@ -104,24 +183,6 @@ const Home=()=>{
     )
   }
 
-  //连接到钱包
-  const connectStarMask = async ()=>{
-    const is = StarMaskOnboarding.isStarMaskInstalled()
-    if(!is){
-      dispatch(setIsStarMaskInstalled(false));
-      return
-    }
-
-    try {
-      const newAccounts = await starcoin.request({
-        method: 'stc_requestAccounts',
-      })
-        window.console.log("连接成功",newAccounts)
-      } catch (error) {
-        window.console.log("连接失败，请重新操作")
-      }
-  }
-
   
 
   return(
@@ -132,8 +193,14 @@ const Home=()=>{
             <span className='app-title'>Starcoin Dapps</span>
           </div>
           <div className='header-right'>
-          {/* <IconSun /> */}
-            <Button style={{marginRight:10}} theme='borderless' type='tertiary' icon={<IconMoon size='large' />} aria-label="暗色模式" />
+            <Button 
+              onClick={switchTheme} 
+              style={{marginRight:10}} 
+              theme='borderless' 
+              type='tertiary' 
+              icon={ themeMode===''?<IconMoon size='large' />: <IconSun  size='large' />} 
+              aria-label="暗色模式" 
+            />
          
             <Button theme='borderless' type='tertiary' style={{marginRight:10}} >
               <span className='language-btn'>
@@ -141,12 +208,13 @@ const Home=()=>{
                 <span style={{fontSize:15,fontWeight:'bold'}}>CN</span>
               </span>
             </Button>
-
-            <Dropdown trigger={'click'} showTick position={'bottom'} menu={menu}>
-                <Button   type='tertiary' style={{marginRight:10}}>Starcoin 主网络</Button>
-            </Dropdown>
-
-            <Button onClick={connectStarMask} theme='solid' style={{borderRadius:5}} type='primary'>连接钱包</Button>
+            
+            <Button   type='tertiary' style={{marginRight:10}}>{ network!==''? networkList[network]:"未连接到网络"}</Button>
+            
+            {
+              account===""? <Button onClick={connectStarMask} theme='solid' style={{borderRadius:5}} type='primary'>连接钱包</Button>:null
+            }
+           
           </div>
         </Header>
         <Layout>
